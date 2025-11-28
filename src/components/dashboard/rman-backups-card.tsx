@@ -52,7 +52,23 @@ const formatDuration = (seconds: number | null | undefined): string => {
 };
 
 
-export default function RmanBackupsCard({ backups = [] }: RmanBackupsCardProps) {
+function RmanBackupsCard({ backups = [] }: RmanBackupsCardProps) {
+  const tableRows = React.useMemo(() => {
+    return backups.map((backup) => (
+      <TableRow key={backup.id}>
+        <TableCell className="text-xs">{backup.start_time}</TableCell>
+         <TableCell className="text-xs">{backup.end_time || 'N/A'}</TableCell>
+        <TableCell>
+          <Badge variant={statusVariant[backup.status] || 'secondary'} className={cn("capitalize text-xs", { "bg-green-600": backup.status === "COMPLETED" })}>
+            {backup.status.toLowerCase()}
+          </Badge>
+        </TableCell>
+        <TableCell className="text-right text-xs font-mono">{formatBytes(backup.input_bytes)}</TableCell>
+        <TableCell className="text-right text-xs font-mono">{formatDuration(backup.elapsed_seconds)}</TableCell>
+      </TableRow>
+    ));
+  }, [backups]);
+
   return (
     <GlassCard>
       <CardHeader>
@@ -72,19 +88,7 @@ export default function RmanBackupsCard({ backups = [] }: RmanBackupsCardProps) 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {backups.map((backup) => (
-                <TableRow key={backup.id}>
-                  <TableCell className="text-xs">{backup.start_time}</TableCell>
-                   <TableCell className="text-xs">{backup.end_time || 'N/A'}</TableCell>
-                  <TableCell>
-                    <Badge variant={statusVariant[backup.status] || 'secondary'} className={cn("capitalize text-xs", { "bg-green-600": backup.status === "COMPLETED" })}>
-                      {backup.status.toLowerCase()}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right text-xs font-mono">{formatBytes(backup.input_bytes)}</TableCell>
-                  <TableCell className="text-right text-xs font-mono">{formatDuration(backup.elapsed_seconds)}</TableCell>
-                </TableRow>
-              ))}
+              {tableRows}
             </TableBody>
           </Table>
         </ScrollArea>
@@ -93,4 +97,4 @@ export default function RmanBackupsCard({ backups = [] }: RmanBackupsCardProps) 
   );
 }
 
-    
+export default React.memo(RmanBackupsCard);

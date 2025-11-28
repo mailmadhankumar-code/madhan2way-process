@@ -4,7 +4,7 @@
 import React from "react";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import DashboardSidebar from "./sidebar";
-import type { Customer, Alert, UserSession } from "@/lib/types";
+import type { Customer, Alert, UserSession, Database } from "@/lib/types";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -13,6 +13,7 @@ interface DashboardLayoutProps {
   onDbSelect: (id: string) => void;
   alerts: Alert[];
   session: UserSession | null;
+  dbs?: (Database & { isUp: boolean; osUp: boolean })[];
 }
 
 export default function DashboardLayout({
@@ -21,7 +22,8 @@ export default function DashboardLayout({
   selectedDbId,
   onDbSelect,
   alerts,
-  session
+  session,
+  dbs
 }: DashboardLayoutProps) {
   return (
     <SidebarProvider>
@@ -31,6 +33,7 @@ export default function DashboardLayout({
         onDbSelect={onDbSelect}
         alerts={alerts}
         session={session}
+        dbs={dbs}
       />
       <SidebarInset>{children}</SidebarInset>
     </SidebarProvider>

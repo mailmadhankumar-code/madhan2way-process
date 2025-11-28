@@ -1,6 +1,7 @@
 
 "use client";
 
+import React from 'react';
 import {
   Sidebar,
   SidebarHeader,
@@ -18,12 +19,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Database, Server, Building, Activity, AlertTriangle, ShieldAlert, Settings, LogOut } from "lucide-react";
-import type { Customer, Alert, UserSession } from "@/lib/types";
+import { Database, Server, Building, Activity, AlertTriangle, ShieldAlert, Compass, LogOut } from "lucide-react";
+import type { Customer, Alert, UserSession, Database as DbType } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "../ui/button";
+import { navLinks } from './nav-links';
 
 interface DashboardSidebarProps {
   customers: Customer[];
@@ -31,6 +33,7 @@ interface DashboardSidebarProps {
   onDbSelect: (id: string) => void;
   alerts: Alert[];
   session: UserSession | null;
+  dbs?: (DbType & { isUp: boolean; osUp: boolean })[];
 }
 
 const StatusIndicator = ({ isUp }: { isUp: boolean }) => (
@@ -54,6 +57,7 @@ export default function DashboardSidebar({
   onDbSelect,
   alerts,
   session,
+  dbs,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -66,7 +70,7 @@ export default function DashboardSidebar({
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2">
           <Badge
             variant="outline"
             className="border-accent/50 text-accent flex items-center gap-2"
@@ -76,13 +80,36 @@ export default function DashboardSidebar({
               ProactiveDB
             </h1>
           </Badge>
-          <div className="grow" />
-          <SidebarTrigger className="md:hidden" />
-        </div>
+        </Link>
+        <div className="grow" />
+        <SidebarTrigger className="md:hidden" />
       </SidebarHeader>
       <SidebarContent>
-        <Accordion type="multiple" defaultValue={[...customers.map(c => c.id), 'alerts', 'management']} className="w-full">
-          {customers.map((customer) => (
+        <Accordion type="multiple" defaultValue={[...customers.map(c => c.id), 'alerts', 'navigation']} className="w-full">
+            <AccordionItem value="navigation" className="border-none">
+                <AccordionTrigger className="px-2 hover:no-underline hover:bg-sidebar-accent rounded-md text-sm">
+                    <div className="flex items-center gap-2">
+                        <Compass className="w-4 h-4" />
+                        <span>Navigation</span>
+                    </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-2">
+                    <SidebarMenu>
+                        {navLinks.map(link => (
+                            <SidebarMenuItem key={link.href}>
+                                <Link href={link.href} passHref>
+                                   <SidebarMenuButton isActive={pathname === link.href} className="gap-2">
+                                        {React.cloneElement(link.icon, { className: 'w-4 h-4' })}
+                                        {link.label}
+                                   </SidebarMenuButton>
+                                </Link>
+                            </SidebarMenuItem>
+                        ))}
+                    </SidebarMenu>
+                </AccordionContent>
+            </AccordionItem>
+            <SidebarSeparator />
+            {customers.map((customer) => (
             <AccordionItem value={customer.id} key={customer.id} className="border-none">
               <AccordionTrigger className="px-2 hover:no-underline hover:bg-sidebar-accent rounded-md text-sm">
                 <div className="flex items-center gap-2">
@@ -92,28 +119,34 @@ export default function DashboardSidebar({
               </AccordionTrigger>
               <AccordionContent className="pt-2">
                 <SidebarMenu>
-                  {customer.databases.map((db) => (
-                    <SidebarMenuItem key={db.id}>
-                      <Link href="/" passHref>
-                        <SidebarMenuButton
-                            onClick={() => onDbSelect(db.id)}
-                            isActive={selectedDbId === db.id && pathname === "/"}
-                            className="justify-between"
-                        >
-                            <span className="flex items-center gap-2">
-                            <Database className="w-4 h-4" />
-                            {db.name}
-                            </span>
-                            <div className="flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">DB</span>
-                            <StatusIndicator isUp={db.isUp} />
-                            <span className="text-xs text-muted-foreground">OS</span>
-                            <StatusIndicator isUp={db.osUp} />
-                            </div>
-                        </SidebarMenuButton>
-                      </Link>
-                    </SidebarMenuItem>
-                  ))}
+                  {customer.databases.map((db) => {
+                    const dbStatus = dbs?.find(d => d.id === db.id);
+                    const isUp = dbStatus?.isUp ?? false;
+                    const osUp = dbStatus?.osUp ?? false;
+
+                    return (
+                        <SidebarMenuItem key={db.id}>
+                        <Link href={`/dashboard?db=${db.id}`} passHref>
+                            <SidebarMenuButton
+                                onClick={() => onDbSelect(db.id)}
+                                isActive={selectedDbId === db.id && pathname === "/dashboard"}
+                                className="justify-between"
+                            >
+                                <span className="flex items-center gap-2">
+                                <Database className="w-4 h-4" />
+                                {db.name}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">DB</span>
+                                <StatusIndicator isUp={isUp} />
+                                <span className="text-xs text-muted-foreground">OS</span>
+                                <StatusIndicator isUp={osUp} />
+                                </div>
+                            </SidebarMenuButton>
+                        </Link>
+                        </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               </AccordionContent>
             </AccordionItem>
@@ -147,26 +180,6 @@ export default function DashboardSidebar({
               </SidebarMenu>
             </AccordionContent>
           </AccordionItem>
-          <AccordionItem value="management" className="border-none">
-             <AccordionTrigger className="px-2 hover:no-underline hover:bg-sidebar-accent rounded-md text-sm">
-                    <div className="flex items-center gap-2">
-                        <Settings className="w-4 h-4" />
-                        <span>Management</span>
-                    </div>
-              </AccordionTrigger>
-              <AccordionContent className="pt-2">
-                <SidebarMenu>
-                    <SidebarMenuItem>
-                        <Link href="/settings" passHref>
-                           <SidebarMenuButton isActive={pathname === "/settings"}>
-                                <Settings className="w-4 h-4" />
-                                Settings
-                           </SidebarMenuButton>
-                        </Link>
-                    </SidebarMenuItem>
-                </SidebarMenu>
-              </AccordionContent>
-          </AccordionItem>
         </Accordion>
       </SidebarContent>
       <SidebarFooter>
@@ -178,7 +191,7 @@ export default function DashboardSidebar({
               </div>
             )}
             <Button onClick={handleLogout} variant="outline" size="sm" className="w-full">
-                <LogOut />
+                <LogOut className="w-4 h-4 mr-2" />
                 <span>Logout</span>
             </Button>
             <p className="text-xs text-muted-foreground text-center p-2">

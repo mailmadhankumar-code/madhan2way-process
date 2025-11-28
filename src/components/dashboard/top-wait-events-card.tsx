@@ -17,7 +17,9 @@ import {
 } from "recharts";
 import { parseISO } from "date-fns";
 import { formatInTimeZone } from 'date-fns-tz';
-import { cn } from "@/lib/utils";
+import { cn, downsample } from "@/lib/client/chart-utils";
+
+const MAX_DATA_POINTS = 100; // Limit the number of data points to render
 
 interface TopWaitEventsCardProps {
   waitEvents: WaitEvent[];
@@ -82,7 +84,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     return null;
   };
 
-export default function TopWaitEventsCard({ waitEvents = [] }: TopWaitEventsCardProps) {
+function TopWaitEventsCard({ waitEvents = [] }: TopWaitEventsCardProps) {
   // Check if we have historical data. The presence of the 'data' array with content indicates this.
   const hasHistoricalData = waitEvents.length > 0 && waitEvents.some(e => e.data && e.data.length > 0);
   const isSnapshotData = waitEvents.length > 0 && !hasHistoricalData;
@@ -114,36 +116,38 @@ export default function TopWaitEventsCard({ waitEvents = [] }: TopWaitEventsCard
   }
 
   // --- Process data for historical chart ---
-  // Determine if the data comes from ASH by checking for the presence of latency data
-  const isFromASH = waitEvents.some(e => e.data?.some(d => d.latency !== null && d.latency !== undefined));
-  
-  const top5Events = waitEvents.slice(0, 5).map(e => e.event);
-  
-  const allTimestamps = [...new Set(waitEvents.flatMap(e => e.data?.map(d => d.date) || []))].sort();
+  const chartData = React.useMemo(() => {
+    const isFromASH = waitEvents.some(e => e.data?.some(d => d.latency !== null && d.latency !== undefined));
+    
+    const top5Events = waitEvents.slice(0, 5).map(e => e.event);
+    
+    const allTimestamps = [...new Set(waitEvents.flatMap(e => e.data?.map(d => d.date) || []))].sort();
 
-  const chartData = allTimestamps.map(ts => {
-      const dataPoint: { [key: string]: any } = { date: ts, latency: {} };
-      top5Events.forEach(event => {
-          const eventData = waitEvents.find(e => e.event === event);
-          const point = eventData?.data?.find(d => d.date === ts);
-          dataPoint[event] = point ? point.value : 0;
-          dataPoint.latency[event] = point ? point.latency : null;
-      });
-      return dataPoint;
-  });
+    const data = allTimestamps.map(ts => {
+        const dataPoint: { [key: string]: any } = { date: ts, latency: {} };
+        top5Events.forEach(event => {
+            const eventData = waitEvents.find(e => e.event === event);
+            const point = eventData?.data?.find(d => d.date === ts);
+            dataPoint[event] = point ? point.value : 0;
+            dataPoint.latency[event] = point ? point.latency : null;
+        });
+        return dataPoint;
+    });
+    return { data: downsample(data, MAX_DATA_POINTS), isFromASH, top5Events };
+  }, [waitEvents]);
 
   return (
     <GlassCard>
       <CardHeader>
         <CardTitle>Top Wait Events (24h)</CardTitle>
         <CardDescription>
-            {`Number of active sessions by wait event. Data from ${isFromASH ? 'GV$ACTIVE_SESSION_HISTORY' : 'v$session snapshots'}.`}
+            {`Number of active sessions by wait event. Data from ${chartData.isFromASH ? 'GV$ACTIVE_SESSION_HISTORY' : 'v$session snapshots'}.`}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={256}>
             <AreaChart
-                data={chartData}
+                data={chartData.data}
                  margin={{
                     top: 10, right: 30, left: 0, bottom: 0,
                 }}
@@ -153,7 +157,7 @@ export default function TopWaitEventsCard({ waitEvents = [] }: TopWaitEventsCard
                 <YAxis allowDecimals={false} tick={{ fontSize: 12 }} label={{ value: "Active Sessions", angle: -90, position: 'insideLeft' }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend iconSize={10} wrapperStyle={{fontSize: "12px"}} />
-                {top5Events.map((event, index) => (
+                {chartData.top5Events.map((event, index) => (
                     <Area
                         key={event}
                         type="monotone"
@@ -172,4 +176,4 @@ export default function TopWaitEventsCard({ waitEvents = [] }: TopWaitEventsCard
   );
 }
 
-    
+export default React.memo(TopWaitEventsCard);

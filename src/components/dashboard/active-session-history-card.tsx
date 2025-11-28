@@ -14,7 +14,9 @@ import type { TimeSeriesData } from "@/lib/types";
 import { Users } from "lucide-react";
 import { formatInTimeZone } from 'date-fns-tz';
 import { parseISO } from 'date-fns';
+import { downsample } from "@/lib/client/chart-utils";
 
+const MAX_DATA_POINTS = 100; // Limit the number of data points to render
 
 const chartConfig = {
   value: {
@@ -54,9 +56,10 @@ const tooltipLabelFormatter = (label: string, payload?: any[]) => {
 
 
 function ActiveSessionHistoryCard({ sessionHistory = [] }: ActiveSessionHistoryCardProps) {
+  const downsampledHistory = React.useMemo(() => downsample(sessionHistory, MAX_DATA_POINTS), [sessionHistory]);
     
   // If we don't have enough data for a meaningful chart, show a loading/empty state.
-  if (!sessionHistory || sessionHistory.length < 2) {
+  if (!downsampledHistory || downsampledHistory.length < 2) {
     const currentSessions = sessionHistory[0]?.value || 0;
     return (
         <GlassCard>
@@ -85,7 +88,7 @@ function ActiveSessionHistoryCard({ sessionHistory = [] }: ActiveSessionHistoryC
         <ChartContainer config={chartConfig} className="h-64 w-full">
           <AreaChart
             accessibilityLayer
-            data={sessionHistory}
+            data={downsampledHistory}
             margin={{
               left: 12,
               right: 12,

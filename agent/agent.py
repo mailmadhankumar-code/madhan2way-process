@@ -3,6 +3,8 @@ import requests
 import json
 import time
 import platform
+import os
+import heapq
 from datetime import datetime, timedelta, timezone
 
 # --- Database Connection Configuration ---
@@ -69,6 +71,58 @@ def get_psutil():
         print("Error: The 'psutil' package is not installed. Please install it using 'pip install psutil'")
         return None
 
+def get_top_processes(psutil, num_processes=5):
+    """Gets top processes by CPU, memory, and I/O efficiently using heapq."""
+    
+    # Initialize CPU usage for all processes to get a baseline reading
+    for p in psutil.process_iter(['pid']):
+        try:
+            p.cpu_percent(interval=0.01)
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+            
+    # Wait a short interval for cpu_percent to become meaningful
+    time.sleep(0.1)
+
+    process_candidates = []
+    for p in psutil.process_iter(['pid', 'name', 'username', 'cpu_percent', 'memory_info', 'io_counters']):
+        try:
+            cpu_percent = p.info['cpu_percent']
+            mem_info = p.info['memory_info']
+            
+            # Pre-filter to ignore processes with no significant resource usage
+            if cpu_percent == 0 and mem_info.rss == 0:
+                continue
+
+            io_counters = p.info['io_counters']
+            
+            process_candidates.append({
+                'pid': p.info['pid'],
+                'name': p.info['name'],
+                'username': p.info['username'],
+                'cpu_percent': cpu_percent,
+                'memory_mb': mem_info.rss / (1024 * 1024),
+                'read_mb': io_counters.read_bytes / (1024 * 1024) if io_counters else 0,
+                'write_mb': io_counters.write_bytes / (1024 * 1024) if io_counters else 0,
+                # Add dummy network fields for frontend compatibility
+                'sent_mb': 0,
+                'recv_mb': 0
+            })
+        except (psutil.NoSuchProcess, psutil.AccessDenied, TypeError):
+            continue
+
+    # Use heapq to efficiently find the top N items without sorting the entire list
+    top_cpu = heapq.nlargest(num_processes, process_candidates, key=lambda p: p['cpu_percent'])
+    top_memory = heapq.nlargest(num_processes, process_candidates, key=lambda p: p['memory_mb'])
+    top_io = heapq.nlargest(num_processes, process_candidates, key=lambda p: p['read_mb'] + p['write_mb'])
+    
+    return {
+        'cpu': top_cpu,
+        'memory': top_memory,
+        'io': top_io,
+        # Add network field for frontend compatibility, even though it's empty
+        'network': []
+    }
 
 def collect_real_data(connection, psutil):
     """
@@ -153,7 +207,7 @@ def collect_real_data(connection, psutil):
 
 
     # --- Current Performance Metrics (for history) ---
-    io_details = {}
+    io_details = []
     total_io_read_rate = 0
     total_io_write_rate = 0
     mem_percent = 0
@@ -169,6 +223,23 @@ def collect_real_data(connection, psutil):
         # OS Disk I/O
         current_io_counters = psutil.disk_io_counters(perdisk=True)
         current_io_timestamp = time.time()
+
+        # Create a mapping from the base device name (e.g., "sda1") to its usage info
+        disk_usage_map = {}
+        for part in psutil.disk_partitions():
+            if 'loop' in part.opts or part.fstype == '':
+                continue
+            try:
+                usage = psutil.disk_usage(part.mountpoint)
+                # os.path.basename is used to get the simple device name (e.g., 'sda1' from '/dev/sda1')
+                # This provides a more reliable key for matching with disk_io_counters
+                device_base_name = os.path.basename(part.device)
+                disk_usage_map[device_base_name] = {
+                    "mount_point": part.mountpoint,
+                    "usage_percent": usage.percent
+                }
+            except Exception as e:
+                print(f"Could not get usage for {part.mountpoint}: {e}")
         
         if previous_io_counters is None:
             previous_io_counters = current_io_counters
@@ -176,9 +247,9 @@ def collect_real_data(connection, psutil):
         else:
             time_delta = current_io_timestamp - previous_io_timestamp
             if time_delta > 0:
-                for disk, current_stats in current_io_counters.items():
-                    if disk in previous_io_counters:
-                        prev_stats = previous_io_counters[disk]
+                for disk_name, current_stats in current_io_counters.items():
+                    if disk_name in previous_io_counters:
+                        prev_stats = previous_io_counters[disk_name]
                         
                         read_bytes_diff = current_stats.read_bytes - prev_stats.read_bytes
                         write_bytes_diff = current_stats.write_bytes - prev_stats.write_bytes
@@ -189,11 +260,18 @@ def collect_real_data(connection, psutil):
                         read_rate = read_bytes_diff / time_delta / (1024 * 1024) # MB/s
                         write_rate = write_bytes_diff / time_delta / (1024 * 1024) # MB/s
                         
+                        # Find corresponding usage data using the robust base name mapping
+                        # This reliably links 'sda1' from I/O counters to 'sda1' from partitions
+                        usage_info = disk_usage_map.get(disk_name, {})
+
                         if read_rate > 0.001 or write_rate > 0.001:
-                            io_details[disk] = {
+                            io_details.append({
+                                "device": disk_name,
                                 "read_mb_s": round(read_rate, 2),
-                                "write_mb_s": round(write_rate, 2)
-                            }
+                                "write_mb_s": round(write_rate, 2),
+                                "mount_point": usage_info.get("mount_point", "N/A"),
+                                "usage_percent": usage_info.get("usage_percent", 0)
+                            })
                             total_io_read_rate += read_rate
                             total_io_write_rate += write_rate
 
@@ -233,6 +311,12 @@ def collect_real_data(connection, psutil):
         "network_down": round(net_down_rate, 2),
         "active_sessions": kpis["activeSessions"]
     }
+
+
+    # --- Top Processes ---
+    top_processes = {}
+    if psutil:
+        top_processes = get_top_processes(psutil)
 
 
     # --- Tablespaces ---
@@ -435,6 +519,7 @@ def collect_real_data(connection, psutil):
         "osInfo": os_info,
         "kpis": kpis,
         "current_performance": current_performance,
+        "top_processes": top_processes,
         "tablespaces": tablespaces,
         "backups": backups,
         "activeSessions": activeSessions,
@@ -501,5 +586,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-    

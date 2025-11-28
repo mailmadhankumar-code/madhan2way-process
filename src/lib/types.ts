@@ -6,6 +6,18 @@ export interface Database {
   isUp: boolean;
   osUp: boolean;
   osType?: string;
+  dbUptime?: number;
+  osUptime?: number;
+  dbVersion?: string;
+  dbPatchDetails?: string;
+  dbSize?: number;
+  sgaTarget?: number;
+  pgaTarget?: number;
+  osPlatform?: string;
+  osVersion?: string;
+  osPatchDetails?: string;
+  totalCpu?: number;
+  totalMemory?: number;
 }
 
 export interface Customer {
@@ -28,6 +40,7 @@ export interface IoDetail {
   mount_point: string;
   read_mb_s: number;
   write_mb_s: number;
+  usage_percent: number;
 }
 
 export interface TimeSeriesData {
@@ -133,6 +146,25 @@ export interface StandbyStatus {
     apply_rate_mb_s: number;
 }
 
+export interface Process {
+    pid: number;
+    name: string;
+    username: string;
+    cpu_percent: number;
+    memory_mb: number;
+    read_mb: number;
+    write_mb: number;
+    sent_mb: number;
+    recv_mb: number;
+}
+
+export interface TopProcesses {
+    cpu: Process[];
+    memory: Process[];
+    io: Process[];
+    network: Process[];
+}
+
 interface EmailCustomer {
     id: string;
     name: string;
@@ -194,6 +226,7 @@ export interface DashboardData {
     active_sessions: number;
   };
   performance: PerformanceData;
+  top_processes: TopProcesses;
   tablespaces: Tablespace[];
   backups: RmanBackup[];
   activeSessions: ActiveSession[];
@@ -204,6 +237,18 @@ export interface DashboardData {
   topWaitEvents: WaitEvent[];
   standbyStatus: StandbyStatus[];
   customers: Customer[];
+  db_uptime?: number;
+  os_uptime?: number;
+  dbVersion?: string;
+  dbPatchDetails?: string;
+  dbSize?: number;
+  sgaTarget?: number;
+  pgaTarget?: number;
+  osPlatform?: string;
+  osVersion?: string;
+  osPatchDetails?: string;
+  totalCpu?: number;
+  totalMemory?: number;
 }
 
 // This is the shape of the data coming from the /data endpoint

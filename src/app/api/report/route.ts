@@ -5,6 +5,20 @@ import { storePerformanceMetrics, db_data_store } from "@/lib/server/db";
 import { AlertManager } from "@/lib/server/alert-manager";
 import { DashboardData } from "@/lib/types";
 
+// Stale data cleanup threshold: 5 minutes
+const STALE_THRESHOLD_MS = 5 * 60 * 1000;
+
+function cleanupStaleData() {
+    const now = new Date();
+    for (const serverId in db_data_store) {
+        const lastUpdated = new Date(db_data_store[serverId].last_updated);
+        if (now.getTime() - lastUpdated.getTime() > STALE_THRESHOLD_MS) {
+            console.log(`[${new Date().toISOString()}] Removing stale data for agent: ${serverId}`);
+            delete db_data_store[serverId];
+        }
+    }
+}
+
 export async function POST(request: Request) {
   try {
     const raw_data = (await request.json());
@@ -40,6 +54,9 @@ export async function POST(request: Request) {
       data: data,
       last_updated: new Date().toISOString(),
     };
+
+    // --- Clean up stale entries from the in-memory store ---
+    cleanupStaleData();
 
     // --- Process Alerts ---
     const settings = await getSettings();

@@ -9,7 +9,27 @@ interface DetailedActiveSessionsCardProps {
   sessions: DetailedActiveSession[];
 }
 
-export default function DetailedActiveSessionsCard({ sessions = [] }: DetailedActiveSessionsCardProps) {
+function DetailedActiveSessionsCard({ sessions = [] }: DetailedActiveSessionsCardProps) {
+  const tableRows = React.useMemo(() => {
+    return sessions.map((session, index) => (
+      <TableRow key={`${session.inst}-${session.sid}-${index}`}>
+        <TableCell>{session.inst}</TableCell>
+        <TableCell>{session.sid}</TableCell>
+        <TableCell>{session.username}</TableCell>
+        <TableCell>{session.sql_id}</TableCell>
+        <TableCell>{session.status}</TableCell>
+        <TableCell className="truncate max-w-[150px]">{session.event}</TableCell>
+        <TableCell>{session.et}</TableCell>
+        <TableCell>{session.obj}</TableCell>
+        <TableCell>{session.bs}</TableCell>
+        <TableCell>{session.bi}</TableCell>
+        <TableCell className="truncate max-w-[150px]">{session.module}</TableCell>
+        <TableCell className="truncate max-w-[150px]">{session.machine}</TableCell>
+        <TableCell>{session.terminal}</TableCell>
+      </TableRow>
+    ));
+  }, [sessions]);
+
   return (
     <GlassCard>
       <CardHeader>
@@ -37,23 +57,7 @@ export default function DetailedActiveSessionsCard({ sessions = [] }: DetailedAc
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sessions.map((session, index) => (
-                <TableRow key={`${session.inst}-${session.sid}-${index}`}>
-                  <TableCell>{session.inst}</TableCell>
-                  <TableCell>{session.sid}</TableCell>
-                  <TableCell>{session.username}</TableCell>
-                  <TableCell>{session.sql_id}</TableCell>
-                  <TableCell>{session.status}</TableCell>
-                  <TableCell className="truncate max-w-[150px]">{session.event}</TableCell>
-                  <TableCell>{session.et}</TableCell>
-                  <TableCell>{session.obj}</TableCell>
-                  <TableCell>{session.bs}</TableCell>
-                  <TableCell>{session.bi}</TableCell>
-                  <TableCell className="truncate max-w-[150px]">{session.module}</TableCell>
-                  <TableCell className="truncate max-w-[150px]">{session.machine}</TableCell>
-                  <TableCell>{session.terminal}</TableCell>
-                </TableRow>
-              ))}
+              {tableRows}
             </TableBody>
           </Table>
         </ScrollArea>
@@ -61,3 +65,5 @@ export default function DetailedActiveSessionsCard({ sessions = [] }: DetailedAc
     </GlassCard>
   );
 }
+
+export default React.memo(DetailedActiveSessionsCard);

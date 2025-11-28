@@ -83,6 +83,21 @@
       },
       {
         "id": "cust4",
+        "name": "MADHAN_DB",
+        "emails": [],
+        "databases": [
+          {
+            "id": "db7",
+            "name": "DEMO_PRIMARY"
+          },
+          {
+            "id": "demo2",
+            "name": "DEMO_STANDBY"
+          }
+        ]
+      },
+      {
+        "id": "cust5",
         "name": "DEMO_CORP",
         "emails": [],
         "databases": [
@@ -115,7 +130,7 @@
         "cust2"
       ]
     },
-   {
+    {
       "email": "user@example.com",
       "username": "itotal",
       "password": "itotal#2025",
@@ -124,7 +139,7 @@
         "cust3"
       ]
     },
-   {
+    {
       "email": "user@example.com",
       "username": "taw9eel",
       "password": "taw9eel#2025",
