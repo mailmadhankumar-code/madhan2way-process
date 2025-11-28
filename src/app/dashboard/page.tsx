@@ -27,15 +27,14 @@ import { toast } from "@/hooks/use-toast";
 import { useSession } from "@/hooks/use-session";
 import { DEMO_DATA_PAYLOAD } from "@/lib/demo-data";
 
-// This type is now more comprehensive to drive the sidebar status
 type StatusPayload = {
     [key: string]: {
         dbIsUp: boolean;
         osIsUp: boolean;
-        db_status?: string;
-        os_status?: string;
-        db_uptime?: string;
-        os_uptime?: string;
+        dbStatus?: string;
+        osStatus?: string;
+        dbUptime?: string;
+        osUptime?: string;
     }
 }
 
@@ -104,7 +103,7 @@ function DashboardContent() {
         return true;
       } catch (error) {
         console.error(`Failed to fetch data for ${dbId}:`, error);
-        setAllData(prev => ({ ...prev, [dbId]: { data: { id: dbId, dbIsUp: false, osIsUp: false, db_status: 'DOWN', os_status: 'DOWN', db_uptime: 'N/A', os_uptime: 'N/A' } } }));
+        setAllData(prev => ({ ...prev, [dbId]: { data: { id: dbId, dbIsUp: false, osIsUp: false, dbStatus: 'DOWN', osStatus: 'DOWN', dbUptime: 'N/A', osUptime: 'N/A' } } }));
         setCustomers(prev => prev.map(c => ({
             ...c,
             databases: c.databases.map(db => 
@@ -121,7 +120,6 @@ function DashboardContent() {
     setIsSwitchingDb(true);
     await fetchDbData(dbId);
     setSelectedDbId(dbId);
-    // Update URL without reloading page
     window.history.pushState({}, '', `/dashboard?db=${dbId}`);
     setIsSwitchingDb(false);
   }, [selectedDbId, fetchDbData]);
@@ -182,7 +180,7 @@ function DashboardContent() {
     if (!isSessionLoading && session) {
         fetchInitialData(session);
     }
-  }, [isSessionLoading, session, queryDbId]);
+  }, [isSessionLoading, session]);
 
   // Interval for refreshing the selected DB's data
   useEffect(() => {
@@ -213,10 +211,10 @@ function DashboardContent() {
     return {
       ...db,
       osType: selectedDbData?.osInfo?.platform || 'N/A',
-      dbStatus: selectedDbData?.db_status || (selectedDbData?.dbIsUp ? 'UP' : 'DOWN'),
-      osStatus: selectedDbData?.os_status || (selectedDbData?.osIsUp ? 'UP' : 'DOWN'),
-      dbUptime: selectedDbData?.db_uptime || 'N/A',
-      osUptime: selectedDbData?.os_uptime || 'N/A'
+      dbStatus: selectedDbData?.dbStatus || (selectedDbData?.dbIsUp ? 'UP' : 'DOWN'),
+      osStatus: selectedDbData?.osStatus || (selectedDbData?.osIsUp ? 'UP' : 'DOWN'),
+      dbUptime: selectedDbData?.dbUptime || 'N/A',
+      osUptime: selectedDbData?.osUptime || 'N/A'
     };
   }, [customers, selectedDbId, selectedDbData]);
 
@@ -246,14 +244,14 @@ function DashboardContent() {
         <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           <div className="md:col-span-2 lg:col-span-2"><ActiveSessionHistoryCard sessionHistory={selectedDbData.activeSessionsHistory} /></div>
           <div className="md:col-span-2 lg:col-span-2"><TopWaitEventsCard waitEvents={selectedDbData.topWaitEvents} /></div>
-          <div className="md:col-span-2 lg:col-span-4"><HostPerformance performanceData={selectedDbData.current_performance} kpis={selectedDbData.kpis} /></div>
-          <div className="md:col-span-2 lg:col-span-4"><TopProcessesCard processes={selectedDbData.top_processes} /></div>
+          <div className="md:col-span-2 lg:col-span-4"><HostPerformance performanceData={selectedDbData.currentPerformance} kpis={selectedDbData.kpis} /></div>
+          <div className="md:col-span-2 lg:col-span-4"><TopProcessesCard processes={selectedDbData.topProcesses} /></div>
           <div className="md:col-span-2 lg:col-span-4"><DetailedActiveSessionsCard sessions={selectedDbData.detailedActiveSessions} /></div>
           <div className="md:col-span-2 lg:col-span-4 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6"><AlertLogCard alerts={selectedDbData.alertLog} /><DiskUsageCard diskUsage={selectedDbData.diskUsage} threshold={settings?.diskThreshold} /></div>
           <div className="md:col-span-2 lg:col-span-4"><TablespacesCard tablespaces={selectedDbData.tablespaces} threshold={settings?.tablespaceThreshold} /></div>
           <div className="md:col-span-2 lg:col-span-4"><RmanBackupsCard backups={selectedDbData.backups} /></div>
           {selectedDbData.standbyStatus && selectedDbData.standbyStatus.length > 0 && (
-              <div className="md:col-span-2 lg:col-span-4"><StandbyStatusCard standbyStatus={selectedDbData.standby_status} /></div>
+              <div className="md:col-span-2 lg:col-span-4"><StandbyStatusCard standbyStatus={selectedDbData.standbyStatus} /></div>
           )}
         </div>
       );
