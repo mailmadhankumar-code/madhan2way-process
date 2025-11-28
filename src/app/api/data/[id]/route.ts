@@ -7,6 +7,7 @@ import { db_data_store } from "@/lib/server/db";
 export const dynamic = 'force-dynamic';
 
 // This function handles the GET request for a specific database ID.
+// Updated with a new comment to attempt to force a recompile.
 export async function GET(
   request: Request,
   { params }: { params: { id: string } } // params is kept for route matching but not used directly
