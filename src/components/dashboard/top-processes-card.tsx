@@ -17,19 +17,19 @@ const ProcessTable = memo(({ data, type }: { data: Process[], type: 'cpu' | 'mem
   }
 
   const renderValue = (process: Process) => {
-    switch (type) {
-      case 'cpu':
-        return `${process.cpu_percent.toFixed(2)}%`;
-      case 'memory':
-        return `${process.memory_mb.toFixed(2)} MB`;
-      case 'io':
-        return `${(process.read_mb + process.write_mb).toFixed(2)} MB`;
-      case 'network':
-        return `${(process.sent_mb + process.recv_mb).toFixed(2)} MB`;
-      default:
-        return null;
-    }
-  };
+      switch (type) {
+        case 'cpu':
+          return `${(process.cpuPercent || 0).toFixed(2)}%`;
+        case 'memory':
+          return `${(process.memoryMb || 0).toFixed(2)} MB`;
+        case 'io':
+          return `${((process.readMb || 0) + (process.writeMb || 0)).toFixed(2)} MB`;
+        case 'network':
+          return `${((process.sentMb || 0) + (process.recvMb || 0)).toFixed(2)} MB`;
+        default:
+          return null;
+      }
+    };
 
   const getHeader = () => {
       switch(type) {
@@ -45,9 +45,9 @@ const ProcessTable = memo(({ data, type }: { data: Process[], type: 'cpu' | 'mem
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead className="w-[80px]">PID</TableHead>
-          <TableHead>Name</TableHead>
+          <TableHead>PID</TableHead>
           <TableHead>User</TableHead>
+          <TableHead>Command</TableHead>
           <TableHead className="text-right">{getHeader()}</TableHead>
         </TableRow>
       </TableHeader>
@@ -55,8 +55,8 @@ const ProcessTable = memo(({ data, type }: { data: Process[], type: 'cpu' | 'mem
         {data.map((process) => (
           <TableRow key={process.pid}>
             <TableCell>{process.pid}</TableCell>
-            <TableCell className="font-medium">{process.name}</TableCell>
-            <TableCell>{process.username}</TableCell>
+            <TableCell>{process.user}</TableCell>
+            <TableCell><div className="w-32 truncate" title={process.command}>{process.command}</div></TableCell>
             <TableCell className="text-right">{renderValue(process)}</TableCell>
           </TableRow>
         ))}
@@ -64,35 +64,35 @@ const ProcessTable = memo(({ data, type }: { data: Process[], type: 'cpu' | 'mem
     </Table>
   );
 });
+
 ProcessTable.displayName = 'ProcessTable';
 
-
 export default function TopProcessesCard({ processes }: TopProcessesCardProps) {
-    const [activeTab, setActiveTab] = useState<'cpu' | 'memory' | 'io' | 'network'>("cpu");
+    const [activeTab, setActiveTab] = useState<'cpu' | 'memory' | 'io' | 'network'>('cpu');
 
     const renderContent = () => {
-        const data = processes?.[activeTab] || [];
-        return <ProcessTable data={data} type={activeTab} />;
-    }
+            const data = processes?.[activeTab] || [];
+            return <ProcessTable data={data} type={activeTab} />;
+        }
 
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Top Processes</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Tabs defaultValue="cpu" onValueChange={(value) => setActiveTab(value as any)}>
-                    <TabsList className="grid w-full grid-cols-4 mb-4">
-                        <TabsTrigger value="cpu">By CPU</TabsTrigger>
-                        <TabsTrigger value="memory">By Memory</TabsTrigger>
-                        <TabsTrigger value="io">By I/O</TabsTrigger>
-                        <TabsTrigger value="network">By Network</TabsTrigger>
-                    </TabsList>
-                    <div>
-                        {renderContent()}
-                    </div>
-                </Tabs>
-            </CardContent>
-        </Card>
-    );
-}
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Top Processes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Tabs defaultValue="cpu" onValueChange={(value) => setActiveTab(value as any)}>
+                        <TabsList className="grid w-full grid-cols-4 mb-4">
+                            <TabsTrigger value="cpu">By CPU</TabsTrigger>
+                            <TabsTrigger value="memory">By Memory</TabsTrigger>
+                            <TabsTrigger value="io">By I/O</TabsTrigger>
+                            <TabsTrigger value="network">By Network</TabsTrigger>
+                        </TabsList>
+                        <div>
+                            {renderContent()}
+                        </div>
+                    </Tabs>
+                </CardContent>
+            </Card>
+        );
+    }
