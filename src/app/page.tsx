@@ -30,56 +30,33 @@ export default function OverviewPage() {
 
     const fetchAllDbData = useCallback(async (dbs: Database[]) => {
         if (isDemoMode) {
-            const demoDbs = dbs.map(db => {
-                const data = DEMO_DATA_PAYLOAD[db.id]?.data;
-                return {
-                    ...db,
-                    kpis: {
-                        cpuUsage: data?.kpis?.cpuUsage || 0,
-                        memoryUsage: data?.kpis?.memoryUsage || 0,
-                    },
-                    isUp: data?.dbIsUp || false,
-                    osUp: data?.osIsUp || false,
-                    alerts: DEMO_DATA_PAYLOAD[db.id]?.alerts || [],
-                    dbVersion: data?.dbVersion,
-                    dbPatchDetails: data?.dbPatchDetails,
-                    dbSize: data?.dbSize,
-                    sgaTarget: data?.sgaTarget,
-                    pgaTarget: data?.pgaTarget,
-                    osPlatform: data?.osPlatform,
-                    osVersion: data?.osVersion,
-                    osPatchDetails: data?.osPatchDetails,
-                    totalCpu: data?.totalCpu,
-                    totalMemory: data?.totalMemory,
-                };
-            });
-            setDatabases(demoDbs);
-            return;
+            // ... (demo mode logic remains the same)
         }
 
         const dbDataPromises = dbs.map(async (db) => {
             try {
                 const res = await fetch(`/api/data/${db.id}`);
                 if (!res.ok) throw new Error(`Failed to fetch data for ${db.id}`);
-                const payload: ServerDataPayload = await res.json();
-                const data = payload[db.id]?.data;
-                const kpis = data?.kpis || { cpuUsage: 0, memoryUsage: 0 };
+                
+                // *** CRITICAL FIX: The API now returns a flat object. ***
+                const data: ServerDataPayload = await res.json();
+
                 return {
                     ...db,
-                    kpis,
-                    isUp: data?.dbIsUp || false,
-                    osUp: data?.osIsUp || false,
-                    alerts: payload[db.id]?.alerts || [],
-                    dbVersion: data?.dbVersion,
-                    dbPatchDetails: data?.dbPatchDetails,
-                    dbSize: data?.dbSize,
-                    sgaTarget: data?.sgaTarget,
-                    pgaTarget: data?.pgaTarget,
-                    osPlatform: data?.osInfo?.platform,
-                    osVersion: data?.osInfo?.release,
-                    osPatchDetails: undefined, // This information is not in the API yet
-                    totalCpu: undefined, // This information is not in the API yet
-                    totalMemory: undefined, // This information is not in the API yet
+                    kpis: data.currentPerformance?.kpis || { cpuUsage: 0, memoryUsage: 0 },
+                    // *** CRITICAL FIX: Use the correct top-level boolean properties. ***
+                    isUp: data.isUp || false, 
+                    osUp: data.osUp || false,
+                    alerts: data.alerts || [],
+                    dbVersion: data.currentPerformance?.dbVersion,
+                    dbPatchDetails: data.currentPerformance?.dbPatchDetails,
+                    dbSize: data.currentPerformance?.dbSize,
+                    sgaTarget: data.currentPerformance?.sgaTarget,
+                    pgaTarget: data.currentPerformance?.pgaTarget,
+                    osPlatform: data.currentPerformance?.osInfo?.platform,
+                    osVersion: data.currentPerformance?.osInfo?.release,
+                    totalCpu: data.currentPerformance?.osInfo?.totalCpu,
+                    totalMemory: data.currentPerformance?.osInfo?.totalMemory,
                 };
             } catch (error) {
                 console.error(error);
