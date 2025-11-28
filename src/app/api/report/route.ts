@@ -1,76 +1,69 @@
 
 import { NextResponse } from "next/server";
-import { getSettings } from "@/lib/server/settings";
-import { storePerformanceMetrics, db_data_store } from "@/lib/server/db";
-import { AlertManager } from "@/lib/server/alert-manager";
-import { DashboardData } from "@/lib/types";
+import { db_data_store, updateDbData } from "@/lib/server/db";
+import { ServerDataPayload } from "@/lib/types";
+import { processAlerts } from "@/lib/server/alert-manager";
 
-// Stale data cleanup threshold: 5 minutes
-const STALE_THRESHOLD_MS = 5 * 60 * 1000;
-
-function cleanupStaleData() {
-    const now = new Date();
-    for (const serverId in db_data_store) {
-        const lastUpdated = new Date(db_data_store[serverId].last_updated);
-        if (now.getTime() - lastUpdated.getTime() > STALE_THRESHOLD_MS) {
-            console.log(`[${new Date().toISOString()}] Removing stale data for agent: ${serverId}`);
-            delete db_data_store[serverId];
-        }
+// Helper function to convert snake_case keys to camelCase
+const toCamelCase = (obj: any): any => {
+    if (Array.isArray(obj)) {
+        return obj.map(v => toCamelCase(v));
+    } else if (obj !== null && typeof obj === 'object') {
+        return Object.keys(obj).reduce((acc, key) => {
+            const camelKey = key.replace(/([-_][a-z])/ig, ($1) => {
+                return $1.toUpperCase()
+                    .replace('-', '')
+                    .replace('_', '');
+            });
+            acc[camelKey] = toCamelCase(obj[key]);
+            return acc;
+        }, {} as any);
     }
-}
+    return obj;
+};
 
 export async function POST(request: Request) {
-  try {
-    const raw_data = (await request.json());
-    
-    // --- Data Type Coercion ---
-    // Ensure numeric fields are correctly typed, especially from JSON
-    const data: DashboardData = {
-        ...raw_data,
-        backups: (raw_data.backups || []).map((b: any) => ({
-            ...b,
-            input_bytes: b.input_bytes ? Number(b.input_bytes) : 0,
-            output_bytes: b.output_bytes ? Number(b.output_bytes) : 0,
-            elapsed_seconds: b.elapsed_seconds ? Number(b.elapsed_seconds) : 0,
-        }))
-    };
-    
-    const server_id = data.id;
-    const timestamp = data.timestamp;
+    try {
+        const payload: ServerDataPayload = await request.json();
+        const dbId = Object.keys(payload)[0];
 
-    if (!server_id || !timestamp) {
-      return NextResponse.json(
-        { error: "Missing 'id' or 'timestamp' in payload" },
-        { status: 400 }
-      );
+        if (!dbId) {
+            return NextResponse.json({ error: "Database ID is missing in the payload" }, { status: 400 });
+        }
+
+        const data = payload[dbId];
+        if (!data) {
+            return NextResponse.json({ error: "Data is missing in the payload" }, { status: 400 });
+        }
+        
+        // *** CRITICAL FIX: Convert all incoming data to camelCase ***
+        const camelCaseData = toCamelCase(data.data);
+
+        // Reconstruct the payload with the transformed data
+        const correctedPayload: ServerDataPayload = {
+            [dbId]: {
+                ...data,
+                data: camelCaseData,
+            }
+        };
+
+        // Update the data store with the camelCase version
+        updateDbData(dbId, correctedPayload[dbId]);
+
+        // Process alerts if there are any
+        if (data.alerts && data.alerts.length > 0) {
+            await processAlerts(dbId, data.alerts);
+        }
+
+        console.log(`[API /report] Received data for ${dbId}`);
+        return NextResponse.json({ message: `Data for ${dbId} processed successfully` });
+
+    } catch (error) {
+        console.error("[API /report] Error processing report:", error);
+        // If the error is a SyntaxError, it's likely a JSON parsing issue.
+        if (error instanceof SyntaxError) {
+            return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+        }
+        return NextResponse.json({ error: "An internal server error occurred" }, { status: 500 });
     }
-
-    // --- Store historical performance data ---
-    await storePerformanceMetrics(server_id, timestamp, data);
-    
-
-    // --- Store the latest full snapshot in memory ---
-    db_data_store[server_id] = {
-      data: data,
-      last_updated: new Date().toISOString(),
-    };
-
-    // --- Clean up stale entries from the in-memory store ---
-    cleanupStaleData();
-
-    // --- Process Alerts ---
-    const settings = await getSettings();
-    const alertManager = new AlertManager(settings);
-    await alertManager.process_alerts(server_id, data);
-    
-    console.log(`[${new Date().toISOString()}] Received data from agent: ${server_id}`);
-    return NextResponse.json({ status: "success", id: server_id }, { status: 201 });
-
-  } catch (error) {
-    console.error("Error processing report:", error);
-    if (error instanceof SyntaxError) {
-        return NextResponse.json({ error: "Request must be JSON" }, { status: 400 });
-    }
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-  }
 }
