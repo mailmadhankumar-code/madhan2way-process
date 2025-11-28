@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { getPerformanceHistory24h, db_data_store } from "@/lib/server/db";
 import { deepCopy } from "@/lib/utils";
 
+// This line is crucial for preventing Next.js from caching the response.
+// It ensures that every request to this endpoint fetches the latest data.
+export const dynamic = 'force-dynamic';
+
 export async function GET(
   request: Request,
   { params }: { params: { server_id: string } }

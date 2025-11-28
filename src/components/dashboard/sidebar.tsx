@@ -33,12 +33,11 @@ interface DashboardSidebarProps {
   onDbSelect: (id: string) => void;
   alerts: Alert[];
   session: UserSession | null;
-  dbs?: (DbType & { isUp: boolean; osUp: boolean })[];
 }
 
 const StatusIndicator = ({ isUp }: { isUp: boolean }) => (
   <div
-    className={`w-2 h-2 rounded-full ${
+    className={`w-2 h-2 rounded-full animate-pulse ${
       isUp ? "bg-green-500" : "bg-red-500"
     }`}
   />
@@ -57,7 +56,6 @@ export default function DashboardSidebar({
   onDbSelect,
   alerts,
   session,
-  dbs,
 }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -119,12 +117,7 @@ export default function DashboardSidebar({
               </AccordionTrigger>
               <AccordionContent className="pt-2">
                 <SidebarMenu>
-                  {customer.databases.map((db) => {
-                    const dbStatus = dbs?.find(d => d.id === db.id);
-                    const isUp = dbStatus?.isUp ?? false;
-                    const osUp = dbStatus?.osUp ?? false;
-
-                    return (
+                  {customer.databases.map((db) => (
                         <SidebarMenuItem key={db.id}>
                         <Link href={`/dashboard?db=${db.id}`} passHref>
                             <SidebarMenuButton
@@ -138,15 +131,14 @@ export default function DashboardSidebar({
                                 </span>
                                 <div className="flex items-center gap-2">
                                 <span className="text-xs text-muted-foreground">DB</span>
-                                <StatusIndicator isUp={isUp} />
+                                <StatusIndicator isUp={db.isUp} />
                                 <span className="text-xs text-muted-foreground">OS</span>
-                                <StatusIndicator isUp={osUp} />
+                                <StatusIndicator isUp={db.osUp} />
                                 </div>
                             </SidebarMenuButton>
                         </Link>
                         </SidebarMenuItem>
-                    );
-                  })}
+                    ))}
                 </SidebarMenu>
               </AccordionContent>
             </AccordionItem>

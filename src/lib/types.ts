@@ -210,9 +210,9 @@ export interface DashboardData {
   id: string;
   dbName: string;
   timestamp: string;
-  dbIsUp: boolean;
+  db_is_up: boolean;
   dbStatus: string;
-  osIsUp: boolean;
+  os_is_up: boolean;
   osInfo?: OsInfo;
   kpis: Kpi;
   current_performance: {

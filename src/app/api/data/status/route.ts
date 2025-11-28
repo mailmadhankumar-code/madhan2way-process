@@ -1,54 +1,34 @@
 
 import { NextResponse } from "next/server";
 import { db_data_store } from "@/lib/server/db";
-import { getSettings } from "@/lib/server/settings";
 
-const STATUS_TIMEOUT_SECONDS = 90;
+// This line is crucial for preventing Next.js from caching the response.
+// It ensures that every request to this endpoint fetches the latest data.
+export const dynamic = 'force-dynamic';
 
-// This is a new, lightweight endpoint to get only the status of all servers.
-// It's used by the frontend to efficiently update the status indicators in the sidebar
-// without fetching all the heavy performance data.
+// This is the GET handler for the /api/data/status route.
 export async function GET() {
-    const statusPayload: { [key: string]: { dbIsUp: boolean; osIsUp: boolean } } = {};
-    const now = new Date();
+  // Create an object to hold the status for each database.
+  const statuses: { [key: string]: any } = {};
 
-    // 1. Get all configured databases from settings to have a complete list
-    const settings = await getSettings();
-    const allConfiguredDbs = settings.emailSettings?.customers?.flatMap(c => c.databases) || [];
+  // Iterate over all the keys (server IDs) in our in-memory data store.
+  for (const serverId in db_data_store) {
+    // Get the data for the current server.
+    const serverData = db_data_store[serverId]?.data;
 
-    // 2. Iterate through all configured databases
-    for (const db of allConfiguredDbs) {
-        const server_id = db.id;
-        const server_snapshot = db_data_store[server_id];
-
-        if (server_snapshot && server_snapshot.data) {
-            // 3. Check if the last update was within the timeout period
-            const lastUpdated = new Date(server_snapshot.last_updated);
-            const secondsSinceUpdate = (now.getTime() - lastUpdated.getTime()) / 1000;
-
-            if (secondsSinceUpdate > STATUS_TIMEOUT_SECONDS) {
-                 // If data is stale, report as down
-                 statusPayload[server_id] = {
-                    dbIsUp: false,
-                    osIsUp: false,
-                };
-            } else {
-                // If data is fresh, use its reported status
-                statusPayload[server_id] = {
-                    dbIsUp: server_snapshot.data.dbIsUp,
-                    osIsUp: server_snapshot.data.osIsUp,
-                };
-            }
-        } else {
-             // 4. If no snapshot exists in memory at all, it's down
-             statusPayload[server_id] = {
-                dbIsUp: false,
-                osIsUp: false,
-            };
-        }
+    // If data exists, extract the necessary status and uptime fields.
+    if (serverData) {
+      statuses[serverId] = {
+        dbIsUp: serverData.dbIsUp,
+        osIsUp: serverData.osIsUp,
+        db_status: serverData.db_status,
+        os_status: serverData.os_status,
+        db_uptime: serverData.db_uptime,
+        os_uptime: serverData.os_uptime,
+      };
     }
-   
-    return NextResponse.json(statusPayload);
-}
+  }
 
-    
+  // Return the complete status object as a JSON response.
+  return NextResponse.json(statuses);
+}

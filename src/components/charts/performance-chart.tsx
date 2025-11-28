@@ -57,7 +57,7 @@ const CustomTooltip = ({ active, payload, label, valueSuffix }: any) => {
                                 <td className="px-2">{d.mount_point}</td>
                                 <td className="px-2 text-right">{d.read_mb_s.toFixed(2)}</td>
                                 <td className="px-2 text-right">{d.write_mb_s.toFixed(2)}</td>
-                                <td className="pl-2 text-right">{d.usage_percent.toFixed(1)}%</td>
+                                <td className="pl-2 text-right">{typeof d.usage_percent === 'number' ? `${d.usage_percent.toFixed(1)}%` : 'N/A'}</td>
                             </tr>
                         ))}
                     </tbody>

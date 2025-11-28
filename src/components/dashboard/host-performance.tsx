@@ -16,6 +16,11 @@ export default function HostPerformance({ performanceData, kpis }: HostPerforman
   const [activeTab, setActiveTab] = useState("cpu");
 
   const renderChart = () => {
+    // Guard against undefined performanceData
+    if (!performanceData) {
+      return <div className="text-center text-muted-foreground py-8">Performance data is not available.</div>;
+    }
+
     switch (activeTab) {
       case "cpu":
         return <PerformanceChart data={performanceData.cpu || []} title="CPU Usage" valueSuffix="%" />;
@@ -49,23 +54,23 @@ export default function HostPerformance({ performanceData, kpis }: HostPerforman
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Host Performance</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="cpu" onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="cpu">CPU</TabsTrigger>
-            <TabsTrigger value="memory">Memory</TabsTrigger>
-            <TabsTrigger value="io">I/O</TabsTrigger>
-            <TabsTrigger value="network">Network</TabsTrigger>
-          </TabsList>
-          <div className="pt-4">
-            {renderChart()}
-          </div>
-        </Tabs>
-      </CardContent>
-    </Card>
-  );
+      <Card>
+        <CardHeader>
+          <CardTitle>Host Performance</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="cpu" onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="cpu">CPU</TabsTrigger>
+              <TabsTrigger value="memory">Memory</TabsTrigger>
+              <TabsTrigger value="io">I/O</TabsTrigger>
+              <TabsTrigger value="network">Network</TabsTrigger>
+            </TabsList>
+            <div className="pt-4">
+              {renderChart()}
+            </div>
+          </Tabs>
+        </CardContent>
+      </Card>
+    );
 }
